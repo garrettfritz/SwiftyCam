@@ -1,27 +1,27 @@
- /*Copyright (c) 2016, Andrew Walz.
-  
-  Redistribution and use in source and binary forms, with or without modification,are permitted provided that the following conditions are met:
-  
-  1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-  
-  2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
-  documentation and/or other materials provided with the distribution.
-  
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
-  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  */
+/*Copyright (c) 2016, Andrew Walz.
  
- import UIKit
- import AVFoundation
+ Redistribution and use in source and binary forms, with or without modification,are permitted provided that the following conditions are met:
  
- // MARK: View Controller Declaration
+ 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  
- /// A UIViewController Camera View Subclass
+ 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
  
- open class SwiftyCamViewController: UIViewController {
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS
+ BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+ GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+import UIKit
+import AVFoundation
+
+// MARK: View Controller Declaration
+
+/// A UIViewController Camera View Subclass
+
+open class SwiftyCamViewController: UIViewController {
     
     // MARK: Enumeration Declaration
     
@@ -34,28 +34,6 @@
         
         /// Camera on the front of the device
         case front = "front"
-    }
-    
-    public enum FlashMode{
-        //Return the equivalent AVCaptureDevice.FlashMode
-        var AVFlashMode: AVCaptureDevice.FlashMode {
-            switch self {
-            case .on:
-                return .on
-            case .off:
-                return .off
-            case .auto:
-                return .auto
-            }
-        }
-        //Flash mode is set to auto
-        case auto
-        
-        //Flash mode is set to on
-        case on
-        
-        //Flash mode is set to off
-        case off
     }
     
     /// Enumeration for video quality of the capture session. Corresponds to a AVCaptureSessionPreset
@@ -124,15 +102,8 @@
     public var videoQuality : VideoQuality       = .high
     
     /// Sets whether flash is enabled for photo and video capture
-    @available(*, deprecated, message: "use flashMode .on or .off") //use flashMode
-    public var flashEnabled: Bool {
-        didSet{
-            self.flashMode = self.flashEnabled ? .on : .off
-        }
-    }
     
-    // Flash Mode
-    public var flashMode:FlashMode               = .off
+    public var flashEnabled                      = false
     
     /// Sets whether Pinch to Zoom is enabled for the capture session
     
@@ -172,6 +143,17 @@
     
     public var defaultCamera                   = CameraSelection.rear
     
+    public var cameraMode = false {
+        
+        didSet {
+            
+            reset()
+            
+        }
+        
+    }
+    
+    
     /// Sets wether the taken photo or video should be oriented according to the device orientation
     
     public var shouldUseDeviceOrientation      = false {
@@ -194,9 +176,6 @@
     /// Sets whether or not app should display prompt to app settings if audio/video permission is denied
     /// If set to false, delegate function will be called to handle exception
     public var shouldPrompToAppSettings       = true
-    
-    /// Video will be recorded to this folder
-    public var outputFolder: String           = NSTemporaryDirectory()
     
     /// Public access to Pinch Gesture
     fileprivate(set) public var pinchGesture  : UIPinchGestureRecognizer!
@@ -443,7 +422,23 @@
     
     /// ViewDidDisappear(_ animated:) Implementation
     
-    
+    private func reset() {
+        
+        
+        guard session.isRunning == true else {
+            return
+        }
+        setupResult = .success
+        
+        session.stopRunning()
+        
+        sessionQueue.async { [unowned self] in
+            self.configureSession()
+            self.session.startRunning()
+        }
+        
+        
+    }
     override open func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
@@ -481,12 +476,32 @@
             return
         }
         
-        if device.hasFlash == true && flashMode != .off /* TODO: Add Support for Retina Flash and add front flash */ {
-            changeFlashSettings(device: device, mode: flashMode)
+        
+        if device.hasFlash == true && flashEnabled == true /* TODO: Add Support for Retina Flash and add front flash */ {
+            changeFlashSettings(device: device, mode: .on)
             capturePhotoAsyncronously(completionHandler: { (_) in })
-        }else{
+            
+        } else if device.hasFlash == false && flashEnabled == true && currentCamera == .front {
+            flashView = UIView(frame: view.frame)
+            flashView?.alpha = 0.0
+            flashView?.backgroundColor = UIColor.white
+            previewLayer.addSubview(flashView!)
+            
+            UIView.animate(withDuration: 0.1, delay: 0.0, options: .curveEaseInOut, animations: {
+                self.flashView?.alpha = 1.0
+                
+            }, completion: { (_) in
+                self.capturePhotoAsyncronously(completionHandler: { (success) in
+                    UIView.animate(withDuration: 0.1, delay: 0.0, options: .curveEaseInOut, animations: {
+                        self.flashView?.alpha = 0.0
+                    }, completion: { (_) in
+                        self.flashView?.removeFromSuperview()
+                    })
+                })
+            })
+        } else {
             if device.isFlashActive == true {
-                changeFlashSettings(device: device, mode: flashMode)
+                changeFlashSettings(device: device, mode: .off)
             }
             capturePhotoAsyncronously(completionHandler: { (_) in })
         }
@@ -510,11 +525,11 @@
             return
         }
         
-        if currentCamera == .rear && flashMode == .on {
+        if currentCamera == .rear && flashEnabled == true {
             enableFlash()
         }
         
-        if currentCamera == .front && flashMode == .on  {
+        if currentCamera == .front && flashEnabled == true {
             flashView = UIView(frame: view.frame)
             flashView?.backgroundColor = UIColor.white
             flashView?.alpha = 0.85
@@ -543,7 +558,7 @@
                 
                 // Start recording to a temporary file.
                 let outputFileName = UUID().uuidString
-                let outputFilePath = (self.outputFolder as NSString).appendingPathComponent((outputFileName as NSString).appendingPathExtension("mov")!)
+                let outputFilePath = (NSTemporaryDirectory() as NSString).appendingPathComponent((outputFileName as NSString).appendingPathExtension("mov")!)
                 movieFileOutput.startRecording(to: URL(fileURLWithPath: outputFilePath), recordingDelegate: self)
                 self.isVideoRecording = true
                 DispatchQueue.main.async {
@@ -567,12 +582,12 @@
      */
     
     public func stopVideoRecording() {
-        if self.isVideoRecording == true {
+        if self.movieFileOutput?.isRecording == true {
             self.isVideoRecording = false
             movieFileOutput!.stopRecording()
             disableFlash()
             
-            if currentCamera == .front && flashMode == .on && flashView != nil {
+            if currentCamera == .front && flashEnabled == true && flashView != nil {
                 UIView.animate(withDuration: 0.1, delay: 0.0, options: .curveEaseInOut, animations: {
                     self.flashView?.alpha = 0.0
                 }, completion: { (_) in
@@ -878,6 +893,9 @@
      */
     
     fileprivate func videoInputPresetFromVideoQuality(quality: VideoQuality) -> String {
+        
+        guard !cameraMode else { return AVCaptureSession.Preset.photo.rawValue }
+        
         switch quality {
         case .high: return AVCaptureSession.Preset.high.rawValue
         case .medium: return AVCaptureSession.Preset.medium.rawValue
@@ -926,10 +944,10 @@
     
     /// Enable or disable flash for photo
     
-    fileprivate func changeFlashSettings(device: AVCaptureDevice, mode: FlashMode) {
+    fileprivate func changeFlashSettings(device: AVCaptureDevice, mode: AVCaptureDevice.FlashMode) {
         do {
             try device.lockForConfiguration()
-            device.flashMode = mode.AVFlashMode
+            device.flashMode = mode
             device.unlockForConfiguration()
         } catch {
             print("[SwiftyCam]: \(error)")
@@ -1029,9 +1047,9 @@
             self.cameraDelegate?.swiftyCamSessionDidStopRunning(self)
         }
     }
- }
- 
- extension SwiftyCamViewController : SwiftyCamButtonDelegate {
+}
+
+extension SwiftyCamViewController : SwiftyCamButtonDelegate {
     
     /// Sets the maximum duration of the SwiftyCamButton
     
@@ -1063,11 +1081,11 @@
     public func longPressDidReachMaximumDuration() {
         stopVideoRecording()
     }
- }
- 
- // MARK: AVCaptureFileOutputRecordingDelegate
- 
- extension SwiftyCamViewController : AVCaptureFileOutputRecordingDelegate {
+}
+
+// MARK: AVCaptureFileOutputRecordingDelegate
+
+extension SwiftyCamViewController : AVCaptureFileOutputRecordingDelegate {
     
     /// Process newly captured video and write it to temporary directory
     
@@ -1092,11 +1110,11 @@
             }
         }
     }
- }
- 
- // Mark: UIGestureRecognizer Declarations
- 
- extension SwiftyCamViewController {
+}
+
+// Mark: UIGestureRecognizer Declarations
+
+extension SwiftyCamViewController {
     
     /// Handle pinch gesture
     
@@ -1239,12 +1257,12 @@
         panGesture.delegate = self
         previewLayer.addGestureRecognizer(panGesture)
     }
- }
- 
- 
- // MARK: UIGestureRecognizerDelegate
- 
- extension SwiftyCamViewController : UIGestureRecognizerDelegate {
+}
+
+
+// MARK: UIGestureRecognizerDelegate
+
+extension SwiftyCamViewController : UIGestureRecognizerDelegate {
     
     /// Set beginZoomScale when pinch begins
     
@@ -1254,4 +1272,4 @@
         }
         return true
     }
- }
+}

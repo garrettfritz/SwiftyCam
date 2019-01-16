@@ -89,7 +89,7 @@ open class SwiftyCamViewController: UIViewController {
     
     // MARK: Public Variable Declarations
     
-    @IBOutlet weak var previewView    : UIView?
+    @IBOutlet weak var previewView    : PreviewView?
     
     /// Public Camera Delegate for the Custom View Controller Subclass
     
@@ -285,9 +285,7 @@ open class SwiftyCamViewController: UIViewController {
         
         if let pv = previewView {
             
-            previewLayer = PreviewView(frame: pv.frame, videoGravity: videoGravity)
-            pv.addSubview(previewLayer)
-            pv.sendSubviewToBack(previewLayer)
+            previewLayer = previewView
             
         } else {
             
@@ -338,7 +336,7 @@ open class SwiftyCamViewController: UIViewController {
         
         layer.videoOrientation = orientation
         
-        previewLayer.frame = self.view.bounds
+        //        previewLayer.frame = self.view.bounds
         
     }
     

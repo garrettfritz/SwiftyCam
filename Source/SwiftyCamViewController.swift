@@ -23,6 +23,14 @@ import AVFoundation
 
 open class SwiftyCamViewController: UIViewController {
     
+    
+    deinit {
+        
+        print("deinit 💥: \(NSStringFromClass(self.classForCoder))")
+        
+    }
+    
+    
     // MARK: Enumeration Declaration
     
     /// Enumeration for Camera Selection
@@ -466,19 +474,13 @@ open class SwiftyCamViewController: UIViewController {
         
         // If session is running, stop the session
         if self.isSessionRunning == true {
-            previewLayer.session = nil
-            previewView?.session = nil
+            
             session.stopRunning()
             
-            sessionQueue.async { [unowned self] in
-                
-                // remove and re-add inputs and outputs
-                
-                for input in self.session.inputs {
-                    self.session.removeInput(input )
-                }
-                
-                
+            // remove and re-add inputs and outputs
+            
+            for input in self.session.inputs {
+                self.session.removeInput(input )
             }
             
             isSessionRunning = false

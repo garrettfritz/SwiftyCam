@@ -89,6 +89,8 @@ open class SwiftyCamViewController: UIViewController {
     
     // MARK: Public Variable Declarations
     
+    @IBOutlet weak var previewView    : UIView?
+    
     /// Public Camera Delegate for the Custom View Controller Subclass
     
     public weak var cameraDelegate: SwiftyCamViewControllerDelegate?
@@ -248,7 +250,7 @@ open class SwiftyCamViewController: UIViewController {
     
     /// PreviewView for the capture session
     
-    fileprivate var previewLayer                 : PreviewView!
+    open var previewLayer                 : PreviewView!
     
     /// UIView for front facing flash
     
@@ -278,10 +280,23 @@ open class SwiftyCamViewController: UIViewController {
     
     override open func viewDidLoad() {
         super.viewDidLoad()
-        previewLayer = PreviewView(frame: view.frame, videoGravity: videoGravity)
+        
+        
+        
+        if let pv = previewView {
+            
+            previewLayer = PreviewView(frame: pv.frame, videoGravity: videoGravity)
+            pv.addSubview(previewLayer)
+            pv.sendSubviewToBack(previewLayer)
+            
+        } else {
+            
+            previewLayer = PreviewView(frame: view.frame, videoGravity: videoGravity)
+            view.addSubview(previewLayer)
+            view.sendSubviewToBack(previewLayer)
+            
+        }
         previewLayer.center = view.center
-        view.addSubview(previewLayer)
-        view.sendSubviewToBack(previewLayer)
         
         // Add Gesture Recognizers
         

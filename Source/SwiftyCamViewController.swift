@@ -153,7 +153,7 @@ open class SwiftyCamViewController: UIViewController {
     
     public var defaultCamera                   = CameraSelection.rear
     
-    public var cameraMode = false {
+    public var cameraMode = true {
         
         didSet {
             

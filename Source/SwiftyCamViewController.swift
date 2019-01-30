@@ -592,6 +592,7 @@ open class SwiftyCamViewController: UIViewController {
                 
                 movieFileOutputConnection?.videoOrientation = self.orientation.getVideoOrientation() ?? previewOrientation
                 
+                
                 // Start recording to a temporary file.
                 let outputFileName = UUID().uuidString
                 let outputFilePath = (NSTemporaryDirectory() as NSString).appendingPathComponent((outputFileName as NSString).appendingPathExtension("mov")!)
@@ -1162,7 +1163,7 @@ extension SwiftyCamViewController {
         do {
             let captureDevice = AVCaptureDevice.devices().first
             try captureDevice?.lockForConfiguration()
-            
+            guard captureDevice != nil else { return }
             zoomScale = min(maxZoomScale, max(1.0, min(beginZoomScale * pinch.scale,  captureDevice!.activeFormat.videoMaxZoomFactor)))
             
             captureDevice?.videoZoomFactor = zoomScale
@@ -1227,7 +1228,7 @@ extension SwiftyCamViewController {
     
     @objc private func panGesture(pan: UIPanGestureRecognizer) {
         
-        guard swipeToZoom == true && self.currentCamera == .rear else {
+        guard swipeToZoom == true && self.currentCamera == .rear   else {
             //ignore pan
             return
         }
@@ -1235,9 +1236,11 @@ extension SwiftyCamViewController {
         let translationDifference = currentTranslation - previousPanTranslation
         
         do {
+            
             let captureDevice = AVCaptureDevice.devices().first
             try captureDevice?.lockForConfiguration()
             
+            guard captureDevice != nil else { return }
             let currentZoom = captureDevice?.videoZoomFactor ?? 0.0
             
             if swipeToZoomInverted == true {
